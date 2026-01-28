@@ -1,0 +1,5 @@
+{
+  "name": "SheetCRM",
+  "description": "A serverless CRM powered by Google Sheets and Gemini AI.",
+  "requestFramePermissions": []
+}
