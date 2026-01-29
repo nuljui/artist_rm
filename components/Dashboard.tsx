@@ -14,7 +14,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ data }) => {
 
   // Metrics
   const totalArtists = data.length;
-  const advocates = data.filter(a => a.status === LifecycleStage.ADVOCATE).length;
+  const engaged = data.filter(a => a.status === LifecycleStage.ENGAGED).length;
   const avgFitScore = data.length > 0
     ? (data.reduce((acc, curr) => acc + curr.fitScore, 0) / data.length).toFixed(1)
     : '0.0';
@@ -137,8 +137,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ data }) => {
           <p className="text-4xl font-extrabold text-gray-900 tracking-tight">{totalArtists}</p>
         </div>
         <div className="space-y-2">
-          <p className="text-sm font-medium text-gray-400 uppercase tracking-widest">Advocates</p>
-          <p className="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-green-500 to-emerald-600 tracking-tight">{advocates}</p>
+          <p className="text-sm font-medium text-gray-400 uppercase tracking-widest">Engaged</p>
+          <p className="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-green-500 to-emerald-600 tracking-tight">{engaged}</p>
         </div>
         <div className="space-y-2">
           <p className="text-sm font-medium text-gray-400 uppercase tracking-widest">Fit Score</p>

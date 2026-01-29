@@ -57,19 +57,33 @@ export const ArtistList: React.FC<ArtistListProps> = ({ data, config, onAdd, onU
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 50;
   const [sortBy, setSortBy] = useState<'Name' | 'Fit Score' | 'Influence' | 'Newest'>('Newest');
+  const [sortDesc, setSortDesc] = useState(true); // Default descending for scores
 
   // Reset page when filters change
   React.useEffect(() => {
     setCurrentPage(1);
-  }, [filter, ownerFilter, statusFilter, fitFilter, platformFilter, sortBy]);
+  }, [filter, ownerFilter, statusFilter, fitFilter, platformFilter, sortBy, sortDesc]);
 
   const sortedData = [...filteredData].sort((a, b) => {
+    let diff = 0;
     switch (sortBy) {
-      case 'Name': return a.name.localeCompare(b.name);
-      case 'Fit Score': return (b.fitScore || 0) - (a.fitScore || 0); // Descending
-      case 'Influence': return (b.influenceScore || 0) - (a.influenceScore || 0); // Descending
-      case 'Newest': default: return 0; // Default order (usually ID or insert order)
+      case 'Name':
+        diff = a.name.localeCompare(b.name);
+        break;
+      case 'Fit Score':
+        diff = (a.fitScore || 0) - (b.fitScore || 0);
+        break;
+      case 'Influence':
+        diff = (a.influenceScore || 0) - (b.influenceScore || 0);
+        break;
+      case 'Newest': default:
+        return 0; // Newest usually implies default order, potentially based on ID if we parsed it, but dataset order is standard
     }
+
+    // Apple sort direction
+    // For Name: Asc is A-Z (diff > 0 if a > b). If Desc, flip.
+    // For Scores: Asc is 1->5. If Desc, 5->1.
+    return sortDesc ? -diff : diff;
   });
 
   const totalPages = Math.ceil(sortedData.length / itemsPerPage);
@@ -208,10 +222,16 @@ export const ArtistList: React.FC<ArtistListProps> = ({ data, config, onAdd, onU
           </div>
 
           <button
-            onClick={() => alert("This would open a modal to add a new Artist row to Sheets.")}
-            className="bg-ink text-white px-5 py-2.5 rounded-xl hover:bg-ink/90 font-medium text-sm whitespace-nowrap shadow-lg hover:shadow-xl transition-all"
+            onClick={() => setSortDesc(!sortDesc)}
+            className="px-4 py-2.5 border border-ink/10 rounded-xl text-sm bg-canvas text-ink hover:bg-ink/5 transition-colors flex items-center gap-2"
+            title={sortDesc ? "Descending" : "Ascending"}
           >
-            + Add Artist
+            {sortDesc ? (
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12" /></svg>
+            ) : (
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4h13M3 8h9m-9 4h9m5-4v12m0 0l-4-4m4 4l4-4" /></svg>
+            )}
+            <span className="hidden md:inline">{sortDesc ? 'Desc' : 'Asc'}</span>
           </button>
         </div>
       </div>
