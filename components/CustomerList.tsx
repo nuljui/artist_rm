@@ -145,6 +145,7 @@ export const ArtistList: React.FC<ArtistListProps> = ({ data, config, onAdd, onU
   };
 
   const getPersonaBadge = (persona: Persona) => {
+    if (!persona || String(persona) === 'Unknown') return null;
     const baseColor = PERSONA_COLORS[persona] || '#6b7280';
     const style = {
       color: baseColor,

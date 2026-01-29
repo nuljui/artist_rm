@@ -88,17 +88,23 @@ export const ArtistCard: React.FC<ArtistCardProps> = ({
                             </span>
                         )}
                         {!primary && <span className="text-xs italic text-ink/30">No profile</span>}
-                        <span>•</span>
-                        <span className="truncate">{artist.industry || 'Unknown Ind.'}</span>
+                        {(artist.industry && artist.industry !== 'Unknown') && (
+                            <>
+                                <span>•</span>
+                                <span className="truncate">{artist.industry}</span>
+                            </>
+                        )}
                     </div>
                 </div>
 
                 {/* Tags */}
                 <div className="sm:col-span-3 flex flex-col gap-1.5">
                     <div className="flex items-center gap-2">
-                        <span className="text-xs text-ink/60 bg-ink/5 px-2 py-0.5 rounded text-center min-w-[60px]">
-                            {artist.artType}
-                        </span>
+                        {(artist.artType && artist.artType !== 'Unknown') && (
+                            <span className="text-xs text-ink/60 bg-ink/5 px-2 py-0.5 rounded text-center min-w-[60px]">
+                                {artist.artType}
+                            </span>
+                        )}
                         {getPersonaBadge(artist.persona)}
                     </div>
                     <div className="flex items-center gap-1">

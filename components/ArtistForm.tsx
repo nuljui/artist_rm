@@ -61,6 +61,9 @@ export const ArtistForm: React.FC<ArtistFormProps> = ({ initialArtist, onSave, o
                                 <option>ArtStation</option>
                                 <option>TikTok</option>
                                 <option>Behance</option>
+                                <option>Cara</option>
+                                <option>500px</option>
+                                <option>LinkedIn</option>
                                 <option>Website</option>
                                 <option>Email</option>
                             </select>
