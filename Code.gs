@@ -458,6 +458,16 @@ function parsePlatformHandleAndCanonicalUrl_(rawUrl) {
     };
   }
 
+  if (lower.includes("linkedin.com")) {
+    const handle = parseLinkedInHandle_(str);
+    if (!handle) return null;
+    return {
+      platform: "LinkedIn",
+      handle,
+      canonicalUrl: `https://linkedin.com/in/${handle}`
+    };
+  }
+
   return null;
 }
 
@@ -619,4 +629,15 @@ function debugSelectedCell() {
   if (parsed) {
     console.log("DERIVED NAME:", deriveNameFromPlatformHandle_(parsed.platform, parsed.handle));
   }
+}
+
+/**
+ * --- LinkedIn parsing ---
+ * Example: https://www.linkedin.com/in/johndoe/
+ */
+function parseLinkedInHandle_(url) {
+  const str = url;
+  const m = str.match(/^https?:\/\/(?:www\.)?linkedin\.com\/in\/([^\/\?#]+)(?:\/|$)/i);
+  if (!m || !m[1]) return null;
+  return canonicalizeHandleGeneric_(m[1], { allowDot: true, reserved: new Set(['feed', 'jobs', 'mynetwork', 'messaging', 'notifications']) });
 }

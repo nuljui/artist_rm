@@ -122,9 +122,9 @@ export const SheetsService = {
         return {
           id: String(id || Math.random().toString(36)),
           name: String(name || 'Unknown Artist'),
-          artType: String(artType || 'Other') as ArtType,
+          artType: String(artType || 'Unknown') as ArtType,
           industry: String(industry || ''),
-          persona: String(persona || 'Mid') as Persona,
+          persona: String(persona || 'Unknown') as Persona,
           timezone: String(timezone || ''),
           influenceScore: parseInt(String(influenceScore || '0')),
           fitScore: parseInt(String(fitScore || '0')),

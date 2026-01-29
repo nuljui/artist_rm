@@ -43,10 +43,14 @@ export const GeminiService = {
   /**
    * Drafts a follow-up message (DM or Email) based on artist data and user context.
    */
-  draftMessage: async (artist: Artist, context?: { lastMessage?: string, template?: string }): Promise<string> => {
+  draftMessage: async (artist: Artist, context?: { engagementType?: string, template?: string, history?: any[] }): Promise<string> => {
     try {
       const ai = getAI();
       const primaryProfile = artist.profiles[0] || { platform: 'Email', url: '' };
+
+      const historyText = context?.history && context.history.length > 0
+        ? context.history.map(h => `[${h.sentAt}] ${h.type}: ${h.messageText}`).join('\n')
+        : "No prior history.";
 
       const response = await ai.models.generateContent({
         model: 'gemini-1.5-flash',
@@ -62,14 +66,17 @@ export const GeminiService = {
         - Fit Score: ${artist.fitScore}/5
         - Owner Notes: ${artist.notes}
         
-        User Input Context:
+        Engagement Context:
+        - Type: ${context?.engagementType || 'Initial Message'}
         - Template Goal: ${context?.template || 'General Outreach'}
-        - Last Interaction/Context: "${context?.lastMessage || 'None provided'}"
+        
+        Message History (Chronological):
+        ${historyText}
         
         Instructions:
         1. Write a SHORT, personalized message strings (under 280 chars if Twitter/Instagram).
         2. If a URL is provided, mention specific details about their work that might be found there (simulate viewing their portfolio).
-        3. Reference the 'Last Interaction' if provided to make it feel continuous.
+        3. If "Message History" exists, refer back to previous points naturally.
         4. Tone should be "Founder to Artist" - authentic, not marketing fluff.
         5. No subject lines.`,
       });

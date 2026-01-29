@@ -23,14 +23,16 @@ export enum ArtType {
   ILLUSTRATION = 'Illustration',
   VIDEO = 'Video',
   PHOTOGRAPHY = 'Photography',
-  OTHER = 'Other'
+  OTHER = 'Other',
+  UNKNOWN = 'Unknown'
 }
 
 export enum Persona {
   STUDENT = 'Student',
   MID = 'Mid',
   PROFESSIONAL = 'Professional',
-  INFLUENCER = 'Influencer'
+  INFLUENCER = 'Influencer',
+  UNKNOWN = 'Unknown'
 }
 
 export interface PlatformProfile {

@@ -26,7 +26,7 @@ export const ArtistList: React.FC<ArtistListProps> = ({ data, config, onAdd, onU
   const [selectedArtist, setSelectedArtist] = useState<Artist | null>(null);
   const [draft, setDraft] = useState<string | null>(null);
   const [isDrafting, setIsDrafting] = useState(false);
-  const [messageContext, setMessageContext] = useState({ template: 'Quick Follow-up', lastMessage: '' });
+  const [messageContext, setMessageContext] = useState({ template: 'Quick Follow-up', engagementType: 'Initial Message' });
 
   const [aiQuery, setAiQuery] = useState('');
   const [aiAnswer, setAiAnswer] = useState<string | null>(null);
@@ -74,7 +74,7 @@ export const ArtistList: React.FC<ArtistListProps> = ({ data, config, onAdd, onU
 
     // Reset if switching artists
     if (selectedArtist?.id !== artist.id) {
-      setMessageContext({ template: 'Quick Follow-up', lastMessage: '' });
+      setMessageContext({ template: 'Quick Follow-up', engagementType: 'Initial Message' });
       setDraft(''); // Start empty
     }
   };
@@ -82,7 +82,10 @@ export const ArtistList: React.FC<ArtistListProps> = ({ data, config, onAdd, onU
   const handleRegenerate = async () => {
     if (!selectedArtist) return;
     setIsDrafting(true);
-    const text = await GeminiService.draftMessage(selectedArtist, messageContext);
+    const text = await GeminiService.draftMessage(selectedArtist, {
+      ...messageContext,
+      history: selectedArtist.touchpoints
+    });
     setDraft(text);
     setIsDrafting(false);
   };
@@ -104,7 +107,7 @@ export const ArtistList: React.FC<ArtistListProps> = ({ data, config, onAdd, onU
   const getPrimaryProfile = (artist: Artist) => {
     if (!artist.profiles || artist.profiles.length === 0) return null;
 
-    const priority = ['ArtStation', 'Behance', 'Instagram', 'Twitter', 'TikTok', 'Website', 'Email'];
+    const priority = ['ArtStation', 'Behance', 'Cara', '500px', 'LinkedIn', 'Instagram', 'Twitter', 'TikTok', 'Website', 'Email'];
 
     // safe sort
     const sorted = [...artist.profiles].sort((a, b) => {
@@ -292,22 +295,50 @@ export const ArtistList: React.FC<ArtistListProps> = ({ data, config, onAdd, onU
               </div>
             )}
 
+            {/* History Section */}
+            {selectedArtist && (
+              <div className="max-h-32 overflow-y-auto bg-stone-50 border border-ink/5 rounded-lg p-2 text-xs space-y-2">
+                <h4 className="font-semibold text-ink/40 uppercase tracking-wider text-[10px] mb-1">Touchpoint History</h4>
+                {selectedArtist.touchpoints && selectedArtist.touchpoints.length > 0 ? (
+                  selectedArtist.touchpoints.map((tp, idx) => (
+                    <div key={idx} className="border-l-2 border-ink/10 pl-2">
+                      <span className="text-ink/40 block">{tp.sentAt} • {tp.type}</span>
+                      <p className="text-ink/80 line-clamp-2">{tp.messageText}</p>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-ink/30 italic">No prior history recorded.</div>
+                )}
+              </div>
+            )}
+
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-medium text-ink/60 mb-1">Message Template</label>
-                <select className="w-full px-3 py-2 border border-ink/20 rounded-lg text-sm bg-canvas text-ink">
+                <select
+                  className="w-full px-3 py-2 border border-ink/20 rounded-lg text-sm bg-canvas text-ink"
+                  value={messageContext.template}
+                  onChange={e => setMessageContext({ ...messageContext, template: e.target.value })}
+                >
                   <option>Quick Follow-up</option>
                   <option>Intro / Cold Outreach</option>
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-ink/60 mb-1">Last Interaction Context</label>
-                <input type="text" placeholder="e.g. They liked our last post..." className="w-full px-3 py-2 border border-ink/20 rounded-lg text-sm bg-canvas text-ink" />
+                <label className="block text-xs font-medium text-ink/60 mb-1">Engagement Type</label>
+                <select
+                  className="w-full px-3 py-2 border border-ink/20 rounded-lg text-sm bg-canvas text-ink"
+                  value={messageContext.engagementType}
+                  onChange={e => setMessageContext({ ...messageContext, engagementType: e.target.value })}
+                >
+                  <option>Initial Message</option>
+                  <option>Message History</option>
+                </select>
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-ink mb-1">Generated Draft</label>
+              <label className="block text-sm font-medium text-ink mb-1">Draft</label>
               <textarea
                 className="w-full h-48 p-3 border border-ink/20 rounded-lg focus:ring-2 focus:ring-accent focus:border-transparent text-sm leading-relaxed bg-canvas text-ink"
                 value={draft || ''}
@@ -321,7 +352,7 @@ export const ArtistList: React.FC<ArtistListProps> = ({ data, config, onAdd, onU
                 className="px-4 py-2 border border-accent text-accent rounded-lg hover:bg-accent/5 text-sm font-medium flex items-center gap-2"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-                {draft ? 'Regenerate' : 'Draft wit AI'}
+                {draft ? 'Regenerate' : 'Draft with AI'}
               </button>
               <div className="flex gap-3">
                 <button
@@ -333,17 +364,22 @@ export const ArtistList: React.FC<ArtistListProps> = ({ data, config, onAdd, onU
                 <button
                   onClick={async () => {
                     if (!selectedArtist || !draft) return;
+
+                    // Prepend Engagement Type if not 'Initial Message' (or always? "put whatever this engagement type at the start")
+                    // User said: "lets just put whatever this engagement type at the start of the message."
+                    const finalMsg = `[${messageContext.engagementType}] ${draft}`;
+
                     await SheetsService.addTouchpoint({
                       touchId: 't' + Math.random().toString(36).substr(2, 9),
                       artistId: selectedArtist.id,
                       platform: selectedArtist.profiles[0]?.platform || 'Email',
                       type: 'dm',
-                      messageText: draft,
+                      messageText: finalMsg,
                       sentAt: new Date().toISOString().split('T')[0],
                       outcome: 'Messaged',
                       linkId: ''
                     }, config);
-                    setMessageContext({ template: 'Quick Follow-up', lastMessage: '' });
+                    setMessageContext({ template: 'Quick Follow-up', engagementType: 'Initial Message' });
                     setDraft('');
                     setSelectedArtist(null);
                   }}

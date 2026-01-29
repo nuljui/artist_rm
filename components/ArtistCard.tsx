@@ -14,7 +14,7 @@ interface ArtistCardProps {
 const getProfileUrl = (platform: string, handleOrUrl: string) => {
     if (!handleOrUrl) return '';
     // If it looks like a URL, treat it as one (ensure protocol)
-    if (handleOrUrl.includes('.') && (handleOrUrl.includes('/') || handleOrUrl.includes('com') || handleOrUrl.includes('net'))) {
+    if (handleOrUrl.includes('.') && (handleOrUrl.includes('/') || handleOrUrl.includes('com') || handleOrUrl.includes('net') || handleOrUrl.includes('app'))) {
         if (!/^https?:\/\//i.test(handleOrUrl)) return `https://${handleOrUrl}`;
         return handleOrUrl;
     }
@@ -31,9 +31,23 @@ const getProfileUrl = (platform: string, handleOrUrl: string) => {
     if (lowerPlatform.includes('github')) return `https://github.com/${cleanHandle}`;
     if (lowerPlatform.includes('dribbble')) return `https://dribbble.com/${cleanHandle}`;
     if (lowerPlatform.includes('linkedin')) return `https://linkedin.com/in/${cleanHandle}`;
+    if (lowerPlatform.includes('cara')) return `https://cara.app/${cleanHandle}`;
+    if (lowerPlatform.includes('500px')) return `https://500px.com/p/${cleanHandle}`;
 
-    return handleOrUrl; // Fallback
+    return `https://${lowerPlatform}.com/${cleanHandle}`; // Improved Fallback
 };
+
+const getPlatformColor = (platform: string) => {
+    const p = platform.toLowerCase();
+    if (p.includes('artstation')) return '#13aff0';
+    if (p.includes('behance')) return '#0057ff';
+    if (p.includes('instagram')) return '#d62976';
+    if (p.includes('twitter') || p.includes('x.com')) return '#1d9bf0';
+    if (p.includes('cara')) return '#d9313a';
+    if (p.includes('500px')) return '#000000';
+    if (p.includes('linkedin')) return '#0a66c2';
+    return '#6b7280'; // default gray
+}
 
 export const ArtistCard: React.FC<ArtistCardProps> = ({
     artist,
@@ -65,9 +79,17 @@ export const ArtistCard: React.FC<ArtistCardProps> = ({
                 <div className="sm:col-span-4">
                     <h3 className="text-base font-semibold text-ink truncate">{artist.name}</h3>
                     <div className="flex items-center gap-2 text-sm text-ink/40 mt-0.5">
-                        <span className="truncate max-w-[120px]">{primary?.handle || 'No handle'}</span>
+                        {primary && (
+                            <span
+                                className="truncate font-semibold uppercase tracking-wide text-[10px]"
+                                style={{ color: getPlatformColor(primary.platform) }}
+                            >
+                                {primary.platform}
+                            </span>
+                        )}
+                        {!primary && <span className="text-xs italic text-ink/30">No profile</span>}
                         <span>•</span>
-                        <span className="truncate">{artist.industry}</span>
+                        <span className="truncate">{artist.industry || 'Unknown Ind.'}</span>
                     </div>
                 </div>
 
