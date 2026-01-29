@@ -8,11 +8,13 @@
 // CHANGE THIS TO YOUR PASSWORD
 const CRM_APP_PASSWORD = "change-this-password"; 
 
-// Match key names to those in Code.gs or your actual sheet tabs
 const CRM_SHEETS = {
-  ARTISTS: 'sheet_artists',
-  PROFILES: 'sheet_profiles',
-  TOUCHPOINTS: 'sheet_touchpoints'
+  ARTISTS_ASSIGNED: 'sheet_artists_assigned',
+  PROFILES_ASSIGNED: 'sheet_profiles_assigned',
+  ARTISTS_UNASSIGNED: 'sheet_artists',
+  PROFILES_UNASSIGNED: 'sheet_profiles',
+  TOUCHPOINTS: 'sheet_touchpoints',
+  DASHBOARD: 'sheet_dashboard'
 };
 
 // --- AUTH ---
@@ -70,11 +72,12 @@ function handleCrmRequest(e) {
     
     // 2. Handle GET (Params)
     const op = e.parameter.op;
+    const view = e.parameter.view; // 'dashboard', 'assigned', 'unassigned'
     const pass = e.parameter.password;
     
     crmCheckAuth(pass);
     
-    if (op === 'fetch') return crmFetchAllData();
+    if (op === 'fetch') return crmFetchView(view);
     
     return crmJsonResponse({ status: 'error', message: 'Unknown op' });
     
@@ -87,25 +90,59 @@ function handleCrmRequest(e) {
 
 // --- ACTIONS ---
 
-function crmFetchAllData() {
+function crmFetchView(viewMode) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   
-  const artists = crmGetSheetData(ss, CRM_SHEETS.ARTISTS);
-  const profiles = crmGetSheetData(ss, CRM_SHEETS.PROFILES);
-  const touchpoints = crmGetSheetData(ss, CRM_SHEETS.TOUCHPOINTS);
-  
+  // DASHBOARD VIEW
+  if (viewMode === 'dashboard') {
+    const stats = crmGetDashboardStats(ss, CRM_SHEETS.DASHBOARD);
+    return crmJsonResponse({
+      status: 'success',
+      data: { stats } // Only stats
+    });
+  }
+
+  // ASSIGNED VIEW (Active Roster)
+  if (viewMode === 'assigned') {
+    return crmJsonResponse({
+      status: 'success',
+      data: {
+        artists: crmGetSheetData(ss, CRM_SHEETS.ARTISTS_ASSIGNED),
+        profiles: crmGetSheetData(ss, CRM_SHEETS.PROFILES_ASSIGNED),
+        touchpoints: crmGetSheetData(ss, CRM_SHEETS.TOUCHPOINTS)
+      }
+    });
+  }
+
+  // UNASSIGNED VIEW (Inbox / Default)
+  // Default fallback if no view specified
   return crmJsonResponse({
     status: 'success',
-    data: { artists, profiles, touchpoints }
+    data: {
+      artists: crmGetSheetData(ss, CRM_SHEETS.ARTISTS_UNASSIGNED),
+      profiles: crmGetSheetData(ss, CRM_SHEETS.PROFILES_UNASSIGNED),
+      touchpoints: crmGetSheetData(ss, CRM_SHEETS.TOUCHPOINTS)
+    }
   });
+}
+
+function crmGetDashboardStats(ss, sheetName) {
+  const sheet = ss.getSheetByName(sheetName);
+  if (!sheet) return {};
+  
+  // Assumes a specific structure or we just dump the raw data?
+  // The user provided a layout. Let's try to parse it generically or just return raw values
+  // so the frontend can map strict positions.
+  // For robustness, getting raw values is safest.
+  return sheet.getDataRange().getValues();
 }
 
 // --- SPECIFIC HANDLERS (Header Mapped) ---
 
 function crmAddArtist(artist) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName(CRM_SHEETS.ARTISTS);
-  if (!sheet) throw "Sheet not found: " + CRM_SHEETS.ARTISTS;
+  const sheet = ss.getSheetByName(CRM_SHEETS.ARTISTS_UNASSIGNED);
+  if (!sheet) throw "Sheet not found: " + CRM_SHEETS.ARTISTS_UNASSIGNED;
   
   const headers = crmGetHeaderMap(sheet);
   const row = Array(sheet.getLastColumn()).fill("");
@@ -131,36 +168,25 @@ function crmAddArtist(artist) {
 
 function crmUpdateArtist(artist) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName(CRM_SHEETS.ARTISTS);
-  if (!sheet) throw "Sheet not found";
   
-  // Find Row
-  const data = sheet.getDataRange().getValues();
-  let rowIndex = -1;
-  // Assumes ID is Col A / Index 0. 
-  // BETTER: Use the header map to find the "Artist ID" column index, then search.
-  const headers = crmGetHeaderMap(sheet);
-  const idColIdx = headers.get("Artist ID");
+  // Try Assigned First
+  let sheet = ss.getSheetByName(CRM_SHEETS.ARTISTS_ASSIGNED);
+  let result = findRowIndex_(sheet, artist.id);
   
-  if (idColIdx == null) throw "Artist ID column not found";
-  
-  for (let i = 1; i < data.length; i++) {
-    if (String(data[i][idColIdx]) === String(artist.id)) {
-      rowIndex = i + 1; 
-      break;
-    }
+  // If not found, try Unassigned
+  if (result.rowIndex === -1) {
+    sheet = ss.getSheetByName(CRM_SHEETS.ARTISTS_UNASSIGNED);
+    result = findRowIndex_(sheet, artist.id);
   }
   
-  if (rowIndex === -1) throw "Artist ID not found: " + artist.id;
+  if (!sheet || result.rowIndex === -1) throw "Artist ID not found in Assigned or Unassigned sheets: " + artist.id;
 
-  // We have rowIndex. Now construct the update row.
-  // Note: setValues expects a 2D array [[val, val...]]
-  // We can just get the existing row to preserve unknown columns, or overwrite. 
-  // Let's overwrite mapped columns only to be safe? 
-  // No, getting the whole range is easier.
+  const headers = result.headers;
+  const rowIndex = result.rowIndex;
   
+  // We have rowIndex. Now update.
   const range = sheet.getRange(rowIndex, 1, 1, sheet.getLastColumn());
-  const currentValues = range.getValues()[0]; // preserve existing data in unmapped cols
+  const currentValues = range.getValues()[0];
   
   crmSetVal(headers, currentValues, "Name", artist.name);
   crmSetVal(headers, currentValues, "Art Type", artist.artType);
@@ -176,13 +202,48 @@ function crmUpdateArtist(artist) {
   crmSetVal(headers, currentValues, "Do Not Contact", artist.doNotContact);
   
   range.setValues([currentValues]);
-  return crmFetchAllData();
+  
+  // Return SUCCESS, but we can't easily return the "View" data because we don't know what view the client is in.
+  // The client will likely re-fetch manually. Returning simple success object.
+  return crmJsonResponse({ status: 'success', message: 'Updated' });
+}
+
+function findRowIndex_(sheet, id) {
+  if (!sheet) return { rowIndex: -1, headers: null };
+  
+  const headers = crmGetHeaderMap(sheet);
+  const idColIdx = headers.get("Artist ID");
+  if (idColIdx == null) return { rowIndex: -1, headers }; // Header missing?
+
+  const data = sheet.getDataRange().getValues();
+  // Start at 1 to skip header
+  for (let i = 1; i < data.length; i++) {
+    if (String(data[i][idColIdx]) === String(id)) {
+      return { rowIndex: i + 1, headers };
+    }
+  }
+  return { rowIndex: -1, headers };
 }
 
 function crmAddProfile(profile) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName(CRM_SHEETS.PROFILES);
-  if (!sheet) throw "Sheet not found: " + CRM_SHEETS.PROFILES;
+  
+  // Determine where the Parent Artist is
+  // Check Assigned first
+  let artistSheet = ss.getSheetByName(CRM_SHEETS.ARTISTS_ASSIGNED);
+  let artistLoc = findRowIndex_(artistSheet, profile.artistId);
+  
+  let targetProfileSheetName = CRM_SHEETS.PROFILES_ASSIGNED; // Default to Assigned if found there
+  
+  if (artistLoc.rowIndex === -1) {
+    // Check Unassigned
+    artistSheet = ss.getSheetByName(CRM_SHEETS.ARTISTS_UNASSIGNED);
+    artistLoc = findRowIndex_(artistSheet, profile.artistId);
+    targetProfileSheetName = CRM_SHEETS.PROFILES_UNASSIGNED; // Found in Unassigned (or not found at all, default here)
+  }
+
+  const sheet = ss.getSheetByName(targetProfileSheetName);
+  if (!sheet) throw "Profile Sheet not found: " + targetProfileSheetName;
   
   const headers = crmGetHeaderMap(sheet);
   const row = Array(sheet.getLastColumn()).fill("");
@@ -192,10 +253,10 @@ function crmAddProfile(profile) {
   crmSetVal(headers, row, "Platform", profile.platform);
   crmSetVal(headers, row, "Handle", profile.handle);
   crmSetVal(headers, row, "URL", profile.url);
-  crmSetVal(headers, row, "Followers", profile.followers || ""); // Code.gs has this
+  crmSetVal(headers, row, "Followers", profile.followers || "");
 
   sheet.appendRow(row);
-  return crmFetchAllData();
+  return crmJsonResponse({ status: 'success', message: 'Profile Added' });
 }
 
 function crmAddTouchpoint(touch) {

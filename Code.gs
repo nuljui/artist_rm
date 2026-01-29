@@ -181,8 +181,8 @@ function ingestProfileData_(ctx, { platform, handle, canonicalUrl, name: nameInp
   const artistId = shortId_("A-", SHORT_ID_HEX_LEN);
   const profileId = shortId_("P-", SHORT_ID_HEX_LEN);
 
-  // Owner (round robin if configured)
-  const owner = getNextOwner_(ctx);
+  // Owner (None for new ingest - unassigned)
+  const owner = "";
 
   // Name: prefer human override, else derive from platform+handle
   const derivedName = deriveNameFromPlatformHandle_(platform, handle);

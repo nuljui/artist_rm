@@ -82,4 +82,15 @@ export interface SheetConfig {
   appPassword?: string;  // Custom Password for access
 }
 
-export type ViewState = 'dashboard' | 'list' | 'settings';
+
+export interface DashboardStats {
+  artists: number;
+  engaged: number;
+  avgFitScore: string;
+  highInfluence: number;
+  statuses: Record<string, number>;
+  platforms: Record<string, number>;
+  artTypes: Record<string, number>;
+  personas: Record<string, number>;
+  owners: Record<string, number>;
+}

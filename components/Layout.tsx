@@ -16,8 +16,8 @@ const NavItem: React.FC<{
   <button
     onClick={onClick}
     className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-all ${active
-        ? 'bg-accent/10 text-accent font-semibold'
-        : 'text-ink/60 hover:bg-ink/5 hover:text-ink'
+      ? 'bg-accent/10 text-accent font-semibold'
+      : 'text-ink/60 hover:bg-ink/5 hover:text-ink'
       }`}
   >
     {icon}
@@ -53,12 +53,22 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentView, setView }
             }
           />
           <NavItem
-            active={currentView === 'list'}
-            onClick={() => setView('list')}
-            label="Artists"
+            active={currentView === 'assigned'}
+            onClick={() => setView('assigned')}
+            label="Artist Roster"
             icon={
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+              </svg>
+            }
+          />
+          <NavItem
+            active={currentView === 'unassigned'}
+            onClick={() => setView('unassigned')}
+            label="Inbox (Unassigned)"
+            icon={
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
               </svg>
             }
           />
@@ -87,7 +97,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentView, setView }
       <main className="flex-1 overflow-auto bg-stone-50 relative">
         <header className="bg-canvas/80 backdrop-blur-md border-b border-ink/5 p-4 md:hidden flex justify-between items-center sticky top-0 z-20">
           <span className="font-bold text-ink">Monolith</span>
-          <button onClick={() => setView('list')} className="text-ink/60">
+          <button onClick={() => setView('assigned')} className="text-ink/60">
             Menu
           </button>
         </header>

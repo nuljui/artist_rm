@@ -17,7 +17,14 @@ export const PALETTE = {
         100: '#f3f4f6',
         200: '#e5e7eb',
         300: '#d1d5db',
-    }
+    },
+    // Chart Colors
+    Blue: '#3B82F6',
+    Orange: '#F59E0B',
+    Purple: '#8B5CF6',
+    Green: '#10B981',
+    Pink: '#EC4899',
+    Teal: '#14B8A6'
 };
 
 export const LIFECYCLE_COLORS: Record<LifecycleStage, string> = {
