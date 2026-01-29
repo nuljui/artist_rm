@@ -158,134 +158,136 @@ export const SheetsService = {
       console.error("Error fetching from Script:", error);
       throw error;
     }
-    fetchDashboardStats: async (config: SheetConfig): Promise<any> => {
-      if (!config.scriptUrl) return {}; // Mock not implemented for dashboard
+  },
 
-      // FETCH 'dashboard' view
-      const response = await callScript(config.scriptUrl + (config.scriptUrl.includes('?') ? '&' : '?') + `op=fetch&view=dashboard`, null, config.appPassword);
-      if (response.status !== 'success') throw new Error(response.message);
+  fetchDashboardStats: async (config: SheetConfig): Promise<any> => {
+    if (!config.scriptUrl) return {}; // Mock not implemented for dashboard
 
-      return response.data.stats;
-    },
+    // FETCH 'dashboard' view
+    const response = await callScript(config.scriptUrl + (config.scriptUrl.includes('?') ? '&' : '?') + `op=fetch&view=dashboard`, null, config.appPassword);
+    if (response.status !== 'success') throw new Error(response.message);
 
-      // Add Row
-      addRow: async (artist: Artist, config?: SheetConfig): Promise<Artist[]> => {
-        // REAL MODE
-        if (config?.scriptUrl) {
-          // 1. Add Artist
+    return response.data.stats;
+  },
+
+  // Add Row
+  addRow: async (artist: Artist, config?: SheetConfig): Promise<{ artists: Artist[] }> => {
+    // REAL MODE
+    if (config?.scriptUrl) {
+      // 1. Add Artist
+      await callScript(config.scriptUrl, {
+        op: 'addArtist',
+        data: artist
+      }, config.appPassword);
+
+      // 2. Add Profiles (Sequentially)
+      for (const p of artist.profiles) {
+        // Ensure ID
+        const profileData = { ...p, id: p.id || 'p' + Math.random().toString(36).substr(2, 9), artistId: artist.id };
+
+        await callScript(config.scriptUrl, {
+          op: 'addProfile',
+          data: profileData
+        }, config.appPassword);
+      }
+
+      // Re-fetch
+      return await SheetsService.fetchData(config);
+    }
+
+    // MOCK MODE
+    await new Promise(resolve => setTimeout(resolve, 500));
+    const stored = localStorage.getItem(LOCAL_STORAGE_DATA_KEY);
+    const currentData = stored ? JSON.parse(stored) : MOCK_ARTISTS;
+    const newData = [artist, ...currentData];
+    localStorage.setItem(LOCAL_STORAGE_DATA_KEY, JSON.stringify(newData));
+    return { artists: newData };
+  },
+
+  // Update Row
+  updateRow: async (updatedArtist: Artist, config?: SheetConfig): Promise<{ artists: Artist[] }> => {
+    if (config?.scriptUrl) {
+      // 1. Update Artist Fields
+      await callScript(config.scriptUrl, {
+        op: 'updateArtist',
+        data: updatedArtist
+      }, config.appPassword);
+
+      // 2. Add ANY NEW Profiles (that don't have an ID yet)
+      // We must update the local object's IDs so the subsequent "Delete" check knows they exist.
+      for (let i = 0; i < updatedArtist.profiles.length; i++) {
+        const p = updatedArtist.profiles[i];
+        if (!p.id) {
+          const newId = 'p' + Math.random().toString(36).substr(2, 9);
+          // CRITICAL: Update the local object so it matches what we just sent to server
+          updatedArtist.profiles[i].id = newId;
+
+          const newP = { ...p, id: newId, artistId: updatedArtist.id };
           await callScript(config.scriptUrl, {
-            op: 'addArtist',
-            data: artist
+            op: 'addProfile',
+            data: newP
           }, config.appPassword);
-
-          // 2. Add Profiles (Sequentially)
-          for (const p of artist.profiles) {
-            // Ensure ID
-            const profileData = { ...p, id: p.id || 'p' + Math.random().toString(36).substr(2, 9), artistId: artist.id };
-
-            await callScript(config.scriptUrl, {
-              op: 'addProfile',
-              data: profileData
-            }, config.appPassword);
-          }
-
-          // Re-fetch
-          return await SheetsService.fetchData(config);
         }
+      }
 
-        // MOCK MODE
-        await new Promise(resolve => setTimeout(resolve, 500));
-        const stored = localStorage.getItem(LOCAL_STORAGE_DATA_KEY);
-        const currentData = stored ? JSON.parse(stored) : MOCK_ARTISTS;
-        const newData = [artist, ...currentData];
-        localStorage.setItem(LOCAL_STORAGE_DATA_KEY, JSON.stringify(newData));
-        return newData;
-      },
+      // 3. DELETE REMOVED Profiles
+      // Fetch latest state to compare
+      const freshData = await SheetsService.fetchData(config);
+      const liveArtist = freshData.artists.find(a => a.id === updatedArtist.id);
 
-        // Update Row
-        updateRow: async (updatedArtist: Artist, config?: SheetConfig): Promise<Artist[]> => {
-          if (config?.scriptUrl) {
-            // 1. Update Artist Fields
-            await callScript(config.scriptUrl, {
-              op: 'updateArtist',
-              data: updatedArtist
-            }, config.appPassword);
+      if (liveArtist) {
+        const liveIDs = liveArtist.profiles.map(p => p.id).filter(Boolean) as string[];
+        // Now this will include the IDs we just generated and added
+        const currentIDs = updatedArtist.profiles.map(p => p.id).filter(Boolean) as string[];
 
-            // 2. Add ANY NEW Profiles (that don't have an ID yet)
-            // We must update the local object's IDs so the subsequent "Delete" check knows they exist.
-            for (let i = 0; i < updatedArtist.profiles.length; i++) {
-              const p = updatedArtist.profiles[i];
-              if (!p.id) {
-                const newId = 'p' + Math.random().toString(36).substr(2, 9);
-                // CRITICAL: Update the local object so it matches what we just sent to server
-                updatedArtist.profiles[i].id = newId;
+        // Deleted = In Live BUT NOT in Current
+        const toDelete = liveIDs.filter(id => !currentIDs.includes(id));
 
-                const newP = { ...p, id: newId, artistId: updatedArtist.id };
-                await callScript(config.scriptUrl, {
-                  op: 'addProfile',
-                  data: newP
-                }, config.appPassword);
-              }
-            }
+        for (const pid of toDelete) {
+          await callScript(config.scriptUrl, {
+            op: 'deleteProfile',
+            id: pid
+          }, config.appPassword);
+        }
+      }
 
-            // 3. DELETE REMOVED Profiles
-            // Fetch latest state to compare
-            const freshData = await SheetsService.fetchData(config);
-            const liveArtist = freshData.find(a => a.id === updatedArtist.id);
+      return await SheetsService.fetchData(config);
+    }
 
-            if (liveArtist) {
-              const liveIDs = liveArtist.profiles.map(p => p.id).filter(Boolean) as string[];
-              // Now this will include the IDs we just generated and added
-              const currentIDs = updatedArtist.profiles.map(p => p.id).filter(Boolean) as string[];
+    // MOCK MODE
+    await new Promise(resolve => setTimeout(resolve, 500));
+    const stored = localStorage.getItem(LOCAL_STORAGE_DATA_KEY);
+    const currentData = stored ? JSON.parse(stored) : MOCK_ARTISTS;
+    const newData = currentData.map(c => c.id === updatedArtist.id ? updatedArtist : c);
+    localStorage.setItem(LOCAL_STORAGE_DATA_KEY, JSON.stringify(newData));
+    return { artists: newData };
+  },
 
-              // Deleted = In Live BUT NOT in Current
-              const toDelete = liveIDs.filter(id => !currentIDs.includes(id));
+  // Add Touchpoint
+  addTouchpoint: async (touchpoint: TouchPoint, config?: SheetConfig): Promise<{ artists: Artist[] }> => {
+    console.log('Adding touchpoint:', touchpoint);
+    if (config?.scriptUrl) {
+      try {
+        const res = await callScript(config.scriptUrl, {
+          op: 'addTouchpoint',
+          data: touchpoint
+        }, config.appPassword);
+        console.log('Touchpoint response:', res);
+      } catch (e) {
+        console.error('Touchpoint failed:', e);
+        throw e; // Rethrow so UI knows
+      }
 
-              for (const pid of toDelete) {
-                await callScript(config.scriptUrl, {
-                  op: 'deleteProfile',
-                  id: pid
-                }, config.appPassword);
-              }
-            }
+      return await SheetsService.fetchData(config);
+    }
 
-            return await SheetsService.fetchData(config);
-          }
+    // Mock Mode
+    await new Promise(resolve => setTimeout(resolve, 300));
+    const stored = localStorage.getItem(LOCAL_STORAGE_TOUCHPOINTS_KEY);
+    const currentLogs = stored ? JSON.parse(stored) : [];
+    const newLogs = [...currentLogs, touchpoint];
+    localStorage.setItem(LOCAL_STORAGE_TOUCHPOINTS_KEY, JSON.stringify(newLogs));
 
-          // MOCK MODE
-          await new Promise(resolve => setTimeout(resolve, 500));
-          const stored = localStorage.getItem(LOCAL_STORAGE_DATA_KEY);
-          const currentData = stored ? JSON.parse(stored) : MOCK_ARTISTS;
-          const newData = currentData.map(c => c.id === updatedArtist.id ? updatedArtist : c);
-          localStorage.setItem(LOCAL_STORAGE_DATA_KEY, JSON.stringify(newData));
-          return newData;
-        },
-
-          // Add Touchpoint
-          addTouchpoint: async (touchpoint: TouchPoint, config?: SheetConfig): Promise<Artist[]> => {
-            console.log('Adding touchpoint:', touchpoint);
-            if (config?.scriptUrl) {
-              try {
-                const res = await callScript(config.scriptUrl, {
-                  op: 'addTouchpoint',
-                  data: touchpoint
-                }, config.appPassword);
-                console.log('Touchpoint response:', res);
-              } catch (e) {
-                console.error('Touchpoint failed:', e);
-                throw e; // Rethrow so UI knows
-              }
-
-              return await SheetsService.fetchData(config);
-            }
-
-            // Mock Mode
-            await new Promise(resolve => setTimeout(resolve, 300));
-            const stored = localStorage.getItem(LOCAL_STORAGE_TOUCHPOINTS_KEY);
-            const currentLogs = stored ? JSON.parse(stored) : [];
-            const newLogs = [...currentLogs, touchpoint];
-            localStorage.setItem(LOCAL_STORAGE_TOUCHPOINTS_KEY, JSON.stringify(newLogs));
-
-            return await SheetsService.fetchData(config || { scriptUrl: '' });
-          }
-  };
+    return await SheetsService.fetchData(config || { scriptUrl: '' });
+  }
+};
