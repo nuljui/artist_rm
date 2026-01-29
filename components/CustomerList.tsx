@@ -56,14 +56,24 @@ export const ArtistList: React.FC<ArtistListProps> = ({ data, config, onAdd, onU
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 50;
+  const [sortBy, setSortBy] = useState<'Name' | 'Fit Score' | 'Influence' | 'Newest'>('Newest');
 
   // Reset page when filters change
   React.useEffect(() => {
     setCurrentPage(1);
-  }, [filter, ownerFilter, statusFilter, fitFilter, platformFilter]);
+  }, [filter, ownerFilter, statusFilter, fitFilter, platformFilter, sortBy]);
 
-  const totalPages = Math.ceil(filteredData.length / itemsPerPage);
-  const currentData = filteredData.slice(
+  const sortedData = [...filteredData].sort((a, b) => {
+    switch (sortBy) {
+      case 'Name': return a.name.localeCompare(b.name);
+      case 'Fit Score': return (b.fitScore || 0) - (a.fitScore || 0); // Descending
+      case 'Influence': return (b.influenceScore || 0) - (a.influenceScore || 0); // Descending
+      case 'Newest': default: return 0; // Default order (usually ID or insert order)
+    }
+  });
+
+  const totalPages = Math.ceil(sortedData.length / itemsPerPage);
+  const currentData = sortedData.slice(
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   );
@@ -178,6 +188,12 @@ export const ArtistList: React.FC<ArtistListProps> = ({ data, config, onAdd, onU
           <select className="px-4 py-2.5 border border-ink/10 rounded-xl text-sm bg-canvas text-ink focus:ring-2 focus:ring-accent focus:outline-none shadow-sm" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
             <option value="All">Status</option>
             {statuses.map(s => <option key={s} value={s}>{s}</option>)}
+          </select>
+          <select className="px-4 py-2.5 border border-ink/10 rounded-xl text-sm bg-canvas text-ink focus:ring-2 focus:ring-accent focus:outline-none shadow-sm" value={sortBy} onChange={e => setSortBy(e.target.value as any)}>
+            <option value="Newest">Sort: Newest</option>
+            <option value="Fit Score">Sort: Fit</option>
+            <option value="Influence">Sort: Influence</option>
+            <option value="Name">Sort: Name</option>
           </select>
 
           <div className="relative flex-1 md:w-64">
