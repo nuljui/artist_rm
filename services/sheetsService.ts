@@ -15,7 +15,9 @@ const callScript = async (url: string, payload: any = null, password?: string, r
 
   try {
     if (!payload) {
-      const authUrl = `${url}?op=fetch&password=${encodeURIComponent(password || '')}`;
+      // Append params safely
+      const separator = url.includes('?') ? '&' : '?';
+      const authUrl = `${url}${separator}op=fetch&password=${encodeURIComponent(password || '')}`;
       resp = await fetch(authUrl);
     } else {
       resp = await fetch(url, options);
@@ -28,7 +30,7 @@ const callScript = async (url: string, payload: any = null, password?: string, r
     }
     throw new Error("Network Error: Is the URL correct? (CORS check failed)");
   }
-
+  // ... (rest of callScript logic unchanged)
   const text = await resp.text();
 
   try {
@@ -66,22 +68,11 @@ export const SheetsService = {
 
     try {
       console.log(`Fetching ${view} from Apps Script...`);
-      // Construct URL with view
-      const urlWithParams = `${config.scriptUrl}${config.scriptUrl?.includes('?') ? '&' : '?'}op=fetch&view=${view}`;
+      // Just pass the view param to callScript, it will handle appending
+      const separator = config.scriptUrl.includes('?') ? '&' : '?';
+      const urlWithView = `${config.scriptUrl}${separator}view=${view}`;
 
-      // Pass password (callScript handles appending it if payload is null, but we are constructing custom URL)
-      // Actually, callScript encapsulates auth. Let's look at callScript again.
-      // It does: const authUrl = `${url}?op=fetch&password=${...}`.
-      // If we pass a URL that already has params, we need to be careful.
-      // Usage: callScript(url, payload, password)
-
-      // We will override the URL construction logic by passing a custom URL to callScript 
-      // BUT callScript appends ?op=fetch itself if payload is null.
-      // I should modify callScript or pass the view as a payload? 
-      // GET requests usually take params in URL. Code.gs expects `e.parameter.view`.
-
-      // Let's modify callScript to accept extra params? Or just hack the URL passed in.
-      const response = await callScript(config.scriptUrl + `&view=${view}`, null, config.appPassword);
+      const response = await callScript(urlWithView, null, config.appPassword);
 
       if (response.status !== 'success') throw new Error(response.message);
 
@@ -164,7 +155,8 @@ export const SheetsService = {
     if (!config.scriptUrl) return {}; // Mock not implemented for dashboard
 
     // FETCH 'dashboard' view
-    const response = await callScript(config.scriptUrl + (config.scriptUrl.includes('?') ? '&' : '?') + `op=fetch&view=dashboard`, null, config.appPassword);
+    const separator = config.scriptUrl.includes('?') ? '&' : '?';
+    const response = await callScript(config.scriptUrl + separator + `view=dashboard`, null, config.appPassword);
     if (response.status !== 'success') throw new Error(response.message);
 
     return response.data.stats;
