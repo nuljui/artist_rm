@@ -78,9 +78,9 @@ export const SheetsService = {
       if (Array.isArray(profiles)) {
         profiles.forEach((row: any[]) => {
           if (!row || row.length < 2) return;
-          const [profileId, artistId, platform, handle, url] = row;
+          const [profileId, artistId, platform, followers, handle, url] = row;
           if (!profilesByArtist[artistId]) profilesByArtist[artistId] = [];
-          profilesByArtist[artistId].push({ id: profileId, platform, handle, url });
+          profilesByArtist[artistId].push({ id: profileId, platform, handle, url, followers });
         });
       }
 

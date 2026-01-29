@@ -40,6 +40,7 @@ export interface PlatformProfile {
   platform: string;
   handle: string;
   url: string;
+  followers?: string;
 }
 
 export interface Artist {
