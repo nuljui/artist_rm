@@ -27,6 +27,7 @@ export const ArtistList: React.FC<ArtistListProps> = ({ data, config, viewMode, 
   const [selectedArtist, setSelectedArtist] = useState<Artist | null>(null);
   const [draft, setDraft] = useState<string | null>(null);
   const [isDrafting, setIsDrafting] = useState(false);
+  const [isSending, setIsSending] = useState(false);
   const [messageContext, setMessageContext] = useState({ template: 'Quick Follow-up', engagementType: 'Initial Message' });
 
   const [aiQuery, setAiQuery] = useState('');
@@ -403,29 +404,45 @@ export const ArtistList: React.FC<ArtistListProps> = ({ data, config, viewMode, 
                 </button>
                 <button
                   onClick={async () => {
-                    if (!selectedArtist || !draft) return;
+                    if (!selectedArtist || !draft || isSending) return;
+                    setIsSending(true);
 
-                    // Prepend Engagement Type if not 'Initial Message' (or always? "put whatever this engagement type at the start")
-                    // User said: "lets just put whatever this engagement type at the start of the message."
-                    const finalMsg = `[${messageContext.engagementType}] ${draft}`;
+                    try {
+                      // Prepend Engagement Type if not 'Initial Message' (or always? "put whatever this engagement type at the start")
+                      // User said: "lets just put whatever this engagement type at the start of the message."
+                      const finalMsg = `[${messageContext.engagementType}] ${draft}`;
 
-                    await SheetsService.addTouchpoint({
-                      touchId: 't' + Math.random().toString(36).substr(2, 9),
-                      artistId: selectedArtist.id,
-                      platform: selectedArtist.profiles[0]?.platform || 'Email',
-                      type: 'dm',
-                      messageText: finalMsg,
-                      sentAt: new Date().toISOString().split('T')[0],
-                      outcome: 'Messaged',
-                      linkId: ''
-                    }, config);
-                    setMessageContext({ template: 'Quick Follow-up', engagementType: 'Initial Message' });
-                    setDraft('');
-                    setSelectedArtist(null);
+                      await SheetsService.addTouchpoint({
+                        touchId: 't' + Math.random().toString(36).substr(2, 9),
+                        artistId: selectedArtist.id,
+                        platform: selectedArtist.profiles[0]?.platform || 'Email',
+                        type: 'dm',
+                        messageText: finalMsg,
+                        sentAt: new Date().toISOString().split('T')[0],
+                        outcome: 'Messaged',
+                        linkId: ''
+                      }, config);
+
+                      setMessageContext({ template: 'Quick Follow-up', engagementType: 'Initial Message' });
+                      setDraft('');
+                      setSelectedArtist(null);
+                    } catch (err) {
+                      console.error("Failed to log message:", err);
+                      alert("Failed to log message. Please try again.");
+                    } finally {
+                      setIsSending(false);
+                    }
                   }}
-                  className="px-4 py-2 bg-accent text-white rounded-lg hover:bg-accent/90 text-sm font-medium shadow-sm"
+                  disabled={isSending}
+                  className={`px-4 py-2 bg-accent text-white rounded-lg hover:bg-accent/90 text-sm font-medium shadow-sm flex items-center gap-2 ${isSending ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
-                  Log Message
+                  {isSending && (
+                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                  )}
+                  {isSending ? 'Logging...' : 'Log Message'}
                 </button>
               </div>
             </div>
@@ -437,22 +454,24 @@ export const ArtistList: React.FC<ArtistListProps> = ({ data, config, viewMode, 
           Just updating the container class to match new style if needed.
       */}
       {/* EDIT MODAL */}
-      {editingArtist && (
-        <ActionModal
-          title={`Edit Artist: ${editingArtist.name}`}
-          isOpen={!!editingArtist}
-          onClose={() => setEditingArtist(null)}
-        >
-          <ArtistForm
-            initialArtist={editingArtist}
-            onSave={(updated) => {
-              cleanUpdate(updated);
-            }}
-            onCancel={() => setEditingArtist(null)}
-          />
-        </ActionModal>
-      )}
+      {
+        editingArtist && (
+          <ActionModal
+            title={`Edit Artist: ${editingArtist.name}`}
+            isOpen={!!editingArtist}
+            onClose={() => setEditingArtist(null)}
+          >
+            <ArtistForm
+              initialArtist={editingArtist}
+              onSave={(updated) => {
+                cleanUpdate(updated);
+              }}
+              onCancel={() => setEditingArtist(null)}
+            />
+          </ActionModal>
+        )
+      }
 
-    </div>
+    </div >
   );
 };

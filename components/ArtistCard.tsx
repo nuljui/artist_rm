@@ -125,6 +125,12 @@ export const ArtistCard: React.FC<ArtistCardProps> = ({
                             <div className="bg-accent h-1 rounded-full opacity-70" style={{ width: `${artist.influenceScore}%` }}></div>
                         </div>
                     </div>
+                    <div className="flex items-center gap-2 text-xs text-ink/50 mt-1">
+                        <span className="w-14">Last TP</span>
+                        <span className="text-ink font-medium">
+                            {artist.lastTouched && artist.lastTouched !== '1970-01-01' ? artist.lastTouched.split('T')[0] : 'Never'}
+                        </span>
+                    </div>
                 </div>
 
                 {/* Actions */}
