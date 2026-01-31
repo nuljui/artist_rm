@@ -21,6 +21,7 @@ export const ArtistList: React.FC<ArtistListProps> = ({ data, config, viewMode, 
   const [statusFilter, setStatusFilter] = useState('All');
   const [fitFilter, setFitFilter] = useState('All');
   const [platformFilter, setPlatformFilter] = useState('All');
+  const [primaryPlatformFilter, setPrimaryPlatformFilter] = useState('All'); // NEW
   const [editingArtist, setEditingArtist] = useState<Artist | null>(null);
 
   // Message Draft & AI Search States
@@ -28,11 +29,46 @@ export const ArtistList: React.FC<ArtistListProps> = ({ data, config, viewMode, 
   const [draft, setDraft] = useState<string | null>(null);
   const [isDrafting, setIsDrafting] = useState(false);
   const [isSending, setIsSending] = useState(false);
-  const [messageContext, setMessageContext] = useState({ template: 'Quick Follow-up', engagementType: 'Initial Message' });
+  // Removed template from messageContext
+  const [messageContext, setMessageContext] = useState({ engagementType: 'Initial Message' });
 
   const [aiQuery, setAiQuery] = useState('');
   const [aiAnswer, setAiAnswer] = useState<string | null>(null);
   const [isAsking, setIsAsking] = useState(false);
+
+  const cleanUpdate = (artist: Artist) => {
+    onUpdate(artist);
+    setEditingArtist(null);
+  };
+
+  const getPrimaryProfile = (artist: Artist) => {
+    if (!artist.profiles || artist.profiles.length === 0) return null;
+
+    const priority = ['ArtStation', 'Behance', 'Cara', '500px', 'LinkedIn', 'Instagram', 'Twitter', 'TikTok', 'Website', 'Email'];
+
+    // safe sort
+    const sorted = [...artist.profiles].sort((a, b) => {
+      const idxA = priority.indexOf(a.platform);
+      const idxB = priority.indexOf(b.platform);
+      // If both in list, lower index wins. If one not in list, it goes to end.
+      const valA = idxA === -1 ? 999 : idxA;
+      const valB = idxB === -1 ? 999 : idxB;
+      return valA - valB;
+    });
+
+    return sorted[0];
+  };
+
+  // Derive Primary Platforms for filter
+  const getPrimaryPlatform = (artist: Artist) => {
+    // Logic copied from ArtistCard/CustomerList helper
+    // Ideally this helper should be shared, but for now duplicating the logic or using the helper if defined in scope
+    // We defined getPrimaryProfile inside component, lets move it out or reuse.
+    const p = getPrimaryProfile(artist);
+    return p ? p.platform : 'Unknown';
+  };
+
+  const allPrimaryPlatforms = Array.from(new Set(data.map(a => getPrimaryPlatform(a)))).sort();
 
   const filteredData = data.filter(c => {
     // Safety check: Explicitly cast to String to handle numbers/booleans
@@ -48,8 +84,9 @@ export const ArtistList: React.FC<ArtistListProps> = ({ data, config, viewMode, 
     const matchesStatus = statusFilter === 'All' || c.status === statusFilter;
     const matchesFit = fitFilter === 'All' || (c.fitScore || 0).toString() === fitFilter;
     const matchesPlatform = platformFilter === 'All' || (c.profiles || []).some(p => p.platform === platformFilter);
+    const matchesPrimaryPlatform = primaryPlatformFilter === 'All' || getPrimaryPlatform(c) === primaryPlatformFilter; // NEW
 
-    return matchesText && matchesOwner && matchesStatus && matchesFit && matchesPlatform;
+    return matchesText && matchesOwner && matchesStatus && matchesFit && matchesPlatform && matchesPrimaryPlatform;
   });
 
   const owners = Array.from(new Set(data.map(c => c.owner))).sort();
@@ -64,7 +101,7 @@ export const ArtistList: React.FC<ArtistListProps> = ({ data, config, viewMode, 
   // Reset page when filters change
   React.useEffect(() => {
     setCurrentPage(1);
-  }, [filter, ownerFilter, statusFilter, fitFilter, platformFilter, sortBy, sortDesc]);
+  }, [filter, ownerFilter, statusFilter, fitFilter, platformFilter, primaryPlatformFilter, sortBy, sortDesc]);
 
   const sortedData = [...filteredData].sort((a, b) => {
     let diff = 0;
@@ -100,15 +137,40 @@ export const ArtistList: React.FC<ArtistListProps> = ({ data, config, viewMode, 
 
     // Reset if switching artists
     if (selectedArtist?.id !== artist.id) {
-      setMessageContext({ template: 'Quick Follow-up', engagementType: 'Initial Message' });
+      setMessageContext({ engagementType: 'Initial Message' });
       setDraft(''); // Start empty
     }
+  };
+
+  // NEW: Handle Interaction (Liked, Followed, etc)
+  const handleInteraction = async (artist: Artist, interactionType: string) => {
+    // Optimistic update or simple alert? Code said "Text: Liked Content", etc.
+    // We will add a touchpoint.
+    // We need a subtle loading state for the card? passing a promise?
+    // For now, let's just fire and forget or show a global toast.
+    // Or better, let ArtistCard handle the specific loading state if possible, but the data call is here.
+    // If we pass an async function, ArtistCard can await it.
+
+    const touchpoint = {
+      touchId: 't' + Math.random().toString(36).substr(2, 9),
+      artistId: artist.id,
+      platform: getPrimaryProfile(artist)?.platform || 'Unknown',
+      type: 'interaction' as any, // 'interaction' isn't in Enum? type is 'dm' | 'comment' | 'email'. Let's use 'comment' or cast 'any' to bypass strictness for now or update type later.
+      messageText: interactionType, // "Liked Content", "Followed", "Messaged"
+      sentAt: new Date().toISOString(), // Full ISO for time
+      outcome: 'Interaction',
+      linkId: ''
+    };
+
+    await SheetsService.addTouchpoint(touchpoint, config);
   };
 
   const handleRegenerate = async () => {
     if (!selectedArtist) return;
     setIsDrafting(true);
+    // Remove template from call
     const text = await GeminiService.draftMessage(selectedArtist, {
+      template: 'Quick Follow-up', // Defaulting since we removed selector
       ...messageContext,
       history: selectedArtist.touchpoints
     });
@@ -123,29 +185,6 @@ export const ArtistList: React.FC<ArtistListProps> = ({ data, config, viewMode, 
     const answer = await GeminiService.askData(aiQuery, data);
     setAiAnswer(answer);
     setIsAsking(false);
-  };
-
-  const cleanUpdate = (artist: Artist) => {
-    onUpdate(artist);
-    setEditingArtist(null);
-  };
-
-  const getPrimaryProfile = (artist: Artist) => {
-    if (!artist.profiles || artist.profiles.length === 0) return null;
-
-    const priority = ['ArtStation', 'Behance', 'Cara', '500px', 'LinkedIn', 'Instagram', 'Twitter', 'TikTok', 'Website', 'Email'];
-
-    // safe sort
-    const sorted = [...artist.profiles].sort((a, b) => {
-      const idxA = priority.indexOf(a.platform);
-      const idxB = priority.indexOf(b.platform);
-      // If both in list, lower index wins. If one not in list, it goes to end.
-      const valA = idxA === -1 ? 999 : idxA;
-      const valB = idxB === -1 ? 999 : idxB;
-      return valA - valB;
-    });
-
-    return sorted[0];
   };
 
   const renderStars = (score: number) => {
@@ -206,6 +245,10 @@ export const ArtistList: React.FC<ArtistListProps> = ({ data, config, viewMode, 
           <select className="px-4 py-2.5 border border-ink/10 rounded-xl text-sm bg-canvas text-ink focus:ring-2 focus:ring-accent focus:outline-none shadow-sm" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
             <option value="All">Status</option>
             {statuses.map(s => <option key={s} value={s}>{s}</option>)}
+          </select>
+          <select className="px-4 py-2.5 border border-ink/10 rounded-xl text-sm bg-canvas text-ink focus:ring-2 focus:ring-accent focus:outline-none shadow-sm" value={primaryPlatformFilter} onChange={e => setPrimaryPlatformFilter(e.target.value)}>
+            <option value="All">All Platforms</option>
+            {allPrimaryPlatforms.map(p => <option key={p} value={p}>{p}</option>)}
           </select>
           <select className="px-4 py-2.5 border border-ink/10 rounded-xl text-sm bg-canvas text-ink focus:ring-2 focus:ring-accent focus:outline-none shadow-sm" value={sortBy} onChange={e => setSortBy(e.target.value as any)}>
             <option value="Newest">Sort: Newest</option>
@@ -277,6 +320,7 @@ export const ArtistList: React.FC<ArtistListProps> = ({ data, config, viewMode, 
             artist={artist}
             onClick={setEditingArtist}
             onMessage={handleDraftMessage}
+            onInteraction={handleInteraction} // NEW PROP
             getLifecycleColor={getLifecycleColor}
             getPersonaBadge={getPersonaBadge}
             renderStars={renderStars}
@@ -353,18 +397,8 @@ export const ArtistList: React.FC<ArtistListProps> = ({ data, config, viewMode, 
               </div>
             )}
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-medium text-ink/60 mb-1">Message Template</label>
-                <select
-                  className="w-full px-3 py-2 border border-ink/20 rounded-lg text-sm bg-canvas text-ink"
-                  value={messageContext.template}
-                  onChange={e => setMessageContext({ ...messageContext, template: e.target.value })}
-                >
-                  <option>Quick Follow-up</option>
-                  <option>Intro / Cold Outreach</option>
-                </select>
-              </div>
+            <div className="grid grid-cols-1 gap-4">
+              {/* REMOVED Template, kept Engagement Type */}
               <div>
                 <label className="block text-xs font-medium text-ink/60 mb-1">Engagement Type</label>
                 <select
@@ -423,7 +457,7 @@ export const ArtistList: React.FC<ArtistListProps> = ({ data, config, viewMode, 
                         linkId: ''
                       }, config);
 
-                      setMessageContext({ template: 'Quick Follow-up', engagementType: 'Initial Message' });
+                      setMessageContext({ engagementType: 'Initial Message' });
                       setDraft('');
                       setSelectedArtist(null);
                     } catch (err) {
