@@ -223,7 +223,7 @@ export const ArtistList: React.FC<ArtistListProps> = ({ data, config, viewMode, 
   return (
     <div className="space-y-8 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* HEADER & FILTERS */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 border-b border-ink/5 pb-8">
+      <div className="flex flex-col xl:flex-row justify-between items-start xl:items-end gap-6 border-b border-ink/5 pb-8">
         <div className="space-y-1">
           <h1 className="text-3xl font-bold text-ink tracking-tight">
             {viewMode === 'unassigned' ? 'Inbox (Unassigned)' : 'Artist Roster'}
@@ -236,21 +236,21 @@ export const ArtistList: React.FC<ArtistListProps> = ({ data, config, viewMode, 
           </p>
         </div>
 
-        <div className="flex flex-col md:flex-row gap-3 w-full md:w-auto">
+        <div className="flex flex-wrap gap-3 w-full xl:w-auto items-center">
           {/* Simple Filters */}
-          <select className="px-4 py-2.5 border border-ink/10 rounded-xl text-sm bg-canvas text-ink focus:ring-2 focus:ring-accent focus:outline-none shadow-sm" value={ownerFilter} onChange={e => setOwnerFilter(e.target.value)}>
+          <select className="px-4 py-2.5 border border-ink/10 rounded-xl text-sm bg-canvas text-ink focus:ring-2 focus:ring-accent focus:outline-none shadow-sm flex-1 md:flex-none" value={ownerFilter} onChange={e => setOwnerFilter(e.target.value)}>
             <option value="All">All Owners</option>
             {owners.map(o => <option key={o} value={o}>{o}</option>)}
           </select>
-          <select className="px-4 py-2.5 border border-ink/10 rounded-xl text-sm bg-canvas text-ink focus:ring-2 focus:ring-accent focus:outline-none shadow-sm" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
+          <select className="px-4 py-2.5 border border-ink/10 rounded-xl text-sm bg-canvas text-ink focus:ring-2 focus:ring-accent focus:outline-none shadow-sm flex-1 md:flex-none" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
             <option value="All">Status</option>
             {statuses.map(s => <option key={s} value={s}>{s}</option>)}
           </select>
-          <select className="px-4 py-2.5 border border-ink/10 rounded-xl text-sm bg-canvas text-ink focus:ring-2 focus:ring-accent focus:outline-none shadow-sm" value={primaryPlatformFilter} onChange={e => setPrimaryPlatformFilter(e.target.value)}>
+          <select className="px-4 py-2.5 border border-ink/10 rounded-xl text-sm bg-canvas text-ink focus:ring-2 focus:ring-accent focus:outline-none shadow-sm flex-1 md:flex-none" value={primaryPlatformFilter} onChange={e => setPrimaryPlatformFilter(e.target.value)}>
             <option value="All">All Platforms</option>
             {allPrimaryPlatforms.map(p => <option key={p} value={p}>{p}</option>)}
           </select>
-          <select className="px-4 py-2.5 border border-ink/10 rounded-xl text-sm bg-canvas text-ink focus:ring-2 focus:ring-accent focus:outline-none shadow-sm" value={sortBy} onChange={e => setSortBy(e.target.value as any)}>
+          <select className="px-4 py-2.5 border border-ink/10 rounded-xl text-sm bg-canvas text-ink focus:ring-2 focus:ring-accent focus:outline-none shadow-sm flex-1 md:flex-none" value={sortBy} onChange={e => setSortBy(e.target.value as any)}>
             <option value="Newest">Sort: Newest</option>
             <option value="Fit Score">Sort: Fit</option>
             <option value="Influence">Sort: Influence</option>
