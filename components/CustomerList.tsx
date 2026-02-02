@@ -22,6 +22,7 @@ export const ArtistList: React.FC<ArtistListProps> = ({ data, config, viewMode, 
   const [fitFilter, setFitFilter] = useState('All');
   const [platformFilter, setPlatformFilter] = useState('All');
   const [primaryPlatformFilter, setPrimaryPlatformFilter] = useState('All'); // NEW
+  const [showDNC, setShowDNC] = useState(false); // NEW: Do Not Contact Filter
   const [editingArtist, setEditingArtist] = useState<Artist | null>(null);
 
   // Message Draft & AI Search States
@@ -86,7 +87,10 @@ export const ArtistList: React.FC<ArtistListProps> = ({ data, config, viewMode, 
     const matchesPlatform = platformFilter === 'All' || (c.profiles || []).some(p => p.platform === platformFilter);
     const matchesPrimaryPlatform = primaryPlatformFilter === 'All' || getPrimaryPlatform(c) === primaryPlatformFilter; // NEW
 
-    return matchesText && matchesOwner && matchesStatus && matchesFit && matchesPlatform && matchesPrimaryPlatform;
+    // DNC Logic: Hide if DNC is true, UNLESS showDNC is true.
+    const matchesDNC = showDNC || !c.doNotContact;
+
+    return matchesText && matchesOwner && matchesStatus && matchesFit && matchesPlatform && matchesPrimaryPlatform && matchesDNC;
   });
 
   const owners = Array.from(new Set(data.map(c => c.owner))).sort();
@@ -237,6 +241,20 @@ export const ArtistList: React.FC<ArtistListProps> = ({ data, config, viewMode, 
         </div>
 
         <div className="flex flex-wrap gap-3 w-full xl:w-auto items-center">
+
+          {/* DNC Toggle */}
+          <label className="flex items-center gap-2 px-3 py-2.5 border border-ink/10 rounded-xl text-sm bg-canvas text-ink cursor-pointer hover:bg-ink/5 transition-colors select-none">
+            <input
+              type="checkbox"
+              checked={showDNC}
+              onChange={e => setShowDNC(e.target.checked)}
+              className="w-4 h-4 text-red-500 rounded focus:ring-red-500 border-gray-300"
+            />
+            <span className={showDNC ? 'text-red-600 font-medium' : 'text-ink/60'}>Show DNC</span>
+          </label>
+
+          <div className="h-8 w-px bg-ink/10 mx-1 hidden md:block"></div>
+
           {/* Simple Filters */}
           <select className="px-4 py-2.5 border border-ink/10 rounded-xl text-sm bg-canvas text-ink focus:ring-2 focus:ring-accent focus:outline-none shadow-sm flex-1 md:flex-none" value={ownerFilter} onChange={e => setOwnerFilter(e.target.value)}>
             <option value="All">All Owners</option>

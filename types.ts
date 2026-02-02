@@ -94,3 +94,5 @@ export interface DashboardStats {
   personas: Record<string, number>;
   owners: Record<string, number>;
 }
+
+export type ViewState = 'dashboard' | 'assigned' | 'unassigned' | 'settings';

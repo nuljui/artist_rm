@@ -84,11 +84,15 @@ export const ArtistCard: React.FC<ArtistCardProps> = ({
     };
 
     const artTypeColor = getArtTypeColor(artist.artType);
+    const isDNC = artist.doNotContact;
 
     return (
         <div
             onClick={() => onClick(artist)}
-            className="group relative flex flex-col md:flex-row md:items-center gap-4 p-4 rounded-xl hover:bg-stone-50 transition-all duration-200 cursor-pointer border border-transparent hover:border-ink/5 bg-white shadow-sm hover:shadow-md"
+            className={`group relative flex flex-col md:flex-row md:items-center gap-4 p-4 rounded-xl transition-all duration-200 cursor-pointer border shadow-sm hover:shadow-md ${isDNC
+                    ? 'bg-red-50 border-red-200 hover:border-red-300'
+                    : 'bg-white border-transparent hover:border-ink/5 hover:bg-stone-50'
+                }`}
         >
             {/* Avatar */}
             <div className="flex-shrink-0">
